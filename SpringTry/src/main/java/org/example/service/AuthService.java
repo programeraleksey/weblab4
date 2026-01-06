@@ -1,6 +1,6 @@
 package org.example.service;
 
-import org.example.dto.RegisterRequest;
+import org.example.db.entity.LoginEntity;
 import org.example.dto.RegisterResponse;
 import org.example.db.entity.UserEntity;
 import org.example.db.repo.UserRepository;
@@ -28,13 +28,16 @@ public class AuthService {
             throw new IllegalArgumentException("password is required");
         }
 
-        if (userRepository.existsByLogin(login)) {
+        if (userRepository.existsByLogin_Login(login)) {
             throw new IllegalArgumentException("login already taken");
         }
 
         String hash = passwordEncoder.encode(password);
-        UserEntity saved = userRepository.save(new UserEntity(login, hash));
+        UserEntity user = new UserEntity();
+        LoginEntity loginEntity = new LoginEntity(login, hash);
+        user.attachLogin(loginEntity);
+        UserEntity saved = userRepository.save(user);
 
-        return new RegisterResponse(saved.getId(), saved.getLogin());
+        return new RegisterResponse(saved.getId(), saved.getLogin().getLogin());
     }
 }

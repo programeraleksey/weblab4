@@ -15,11 +15,11 @@ public class DbUserDetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        var user = userRepository.findByLogin(username)
+        var user = userRepository.findByLogin_Login(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
-        return User.withUsername(user.getLogin())
-                .password(user.getPasswordHash())
+        return User.withUsername(user.getLogin().getLogin())
+                .password(user.getLogin().getPasswordHash())
                 .roles("USER")
                 .build();
     }

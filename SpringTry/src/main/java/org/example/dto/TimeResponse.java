@@ -1,3 +1,5 @@
 package org.example.dto;
 
-public record TimeResponse(java.time.OffsetDateTime serverTime) {}
+import java.time.LocalDateTime;
+
+public record TimeResponse(LocalDateTime serverTime) {}

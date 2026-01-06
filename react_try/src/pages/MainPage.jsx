@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-import { useMemo, useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect } from "react";
 
 import { MultiSelect } from "primereact/multiselect";
 import { Slider } from "primereact/slider";
@@ -9,15 +9,20 @@ import { addPoint, setPoints } from "../redux/pointsSlice";
 import { useDispatch, useSelector } from "react-redux";
 import { logout } from "../api/authThunks";
 
+import "./pages.css";
+
 const VB_MIN = -5.5;
 const VB_SIZE = 11;
-
-const th = { border: "1px solid #ddd", padding: 8, textAlign: "left" };
-const td = { border: "1px solid #ddd", padding: 8 };
 
 const ALLOWED = [-3, -2, -1, 0, 1, 2, 3, 4, 5];
 const X_OPTIONS = ALLOWED.map((v) => ({ label: String(v), value: v }));
 const R_OPTIONS = X_OPTIONS;
+
+const TICKS = (() => {
+    const arr = [];
+    for (let i = -5; i <= 5; i++) arr.push(i);
+    return arr;
+})();
 
 export default function MainPage() {
     const dispatch = useDispatch();
@@ -45,43 +50,51 @@ export default function MainPage() {
     }, [dispatch]);
 
     return (
-        <div>
-            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                <Link to="/">Обратно</Link>
-                <button onClick={handleLogout}>Выйти</button>
-            </div>
+        <div className="page">
+            <div className="container">
+                <div className="topBar">
+                    <Link to="/">Обратно</Link>
+                    <button onClick={handleLogout}>Выйти</button>
+                </div>
 
-            <div style={{ marginTop: 16, display: "grid", gap: 12, maxWidth: 420 }}>
-                <div>
-                    <label>R (MultiSelect):</label>
-                    <MultiSelect
-                        value={rSel}
-                        options={R_OPTIONS}
-                        onChange={(e) => {
-                            const arr = e.value ?? [];
-                            setRSel(arr.length ? [arr[arr.length - 1]] : []);
-                        }}
-                        placeholder="Выбери R"
-                        maxSelectedLabels={1}
-                        display="chip"
-                    />
+                <div className="mainLayout">
+                    <div className="mainGrid">
+                        <div className="panel">
+                            <div className="panelStack">
+                                <div>
+                                    <label>R (MultiSelect):</label>
+                                    <MultiSelect
+                                        value={rSel}
+                                        options={R_OPTIONS}
+                                        onChange={(e) => {
+                                            const arr = e.value ?? [];
+                                            setRSel(arr.length ? [arr[arr.length - 1]] : []);
+                                        }}
+                                        placeholder="Выбери R"
+                                        maxSelectedLabels={1}
+                                        display="chip"
+                                    />
+                                </div>
+
+                                <ManualPointForm rSel={rSel} r={r} />
+                            </div>
+                        </div>
+
+                        <div className="plotBlock">
+                            <PlotWithRadiusAndClick r={r} />
+                        </div>
+                    </div>
+
+                    <PointsTable points={items} />
                 </div>
             </div>
-
-            <ManualPointForm rSel={rSel} r={r} />
-            <PlotWithRadiusAndClick r={r} />
-
-            <PointsTable points={items} />
         </div>
     );
 }
 
 function AxisNumbers({ max = 5 }) {
-    const values = useMemo(() => {
-        const arr = [];
-        for (let i = -max; i <= max; i++) arr.push(i);
-        return arr;
-    }, [max]);
+    const values = [];
+    for (let i = -max; i <= max; i++) values.push(i);
 
     const fontSize = 0.35;
 
@@ -102,15 +115,12 @@ function AxisNumbers({ max = 5 }) {
 }
 
 function Plot({ R, points = [], onPickPoint }) {
-    const r = Math.max(0.1, Math.min(5, Number(R) || 1));
+    const rRaw = Number(R);
+    const rAbs = Number.isFinite(rRaw) ? Math.min(5, Math.abs(rRaw)) : 1;
+    const mirror = Number.isFinite(rRaw) && rRaw < 0;
+
     const axisStroke = 0.06;
     const tickSize = 0.15;
-
-    const ticks = useMemo(() => {
-        const arr = [];
-        for (let i = -5; i <= 5; i++) arr.push(i);
-        return arr;
-    }, []);
 
     const svgRef = useRef(null);
 
@@ -131,30 +141,47 @@ function Plot({ R, points = [], onPickPoint }) {
 
     return (
         <svg
+            className="plotSvg"
             ref={svgRef}
-            width="360"
-            height="360"
             viewBox={`${VB_MIN} ${VB_MIN} ${VB_SIZE} ${VB_SIZE}`}
             onClick={handleClick}
             style={{ cursor: "crosshair", userSelect: "none" }}
         >
             <g transform="scale(1,-1)">
-                <rect x={0} y={0} width={r / 2} height={r} fill="#4da3ff" opacity={0.8} />
-                <polygon points={`${0},${0} ${-r / 2},${0} ${0},${r}`} fill="#4da3ff" opacity={0.8} />
-                <path
-                    d={`M 0 0 L 0 ${-r / 2} A ${r / 2} ${r / 2} 0 0 0 ${-r / 2} 0 Z`}
-                    fill="#4da3ff"
-                    opacity={0.8}
-                />
+                <g transform={mirror ? "rotate(180)" : undefined}>
+                    <rect x={0} y={0} width={rAbs / 2} height={rAbs} fill="#4da3ff" opacity={0.8} />
+                    <polygon points={`${0},${0} ${-rAbs / 2},${0} ${0},${rAbs}`} fill="#4da3ff" opacity={0.8} />
+                    <path
+                        d={`M 0 0 L 0 ${-rAbs / 2} A ${rAbs / 2} ${rAbs / 2} 0 0 0 ${-rAbs / 2} 0 Z`}
+                        fill="#4da3ff"
+                        opacity={0.8}
+                    />
+                </g>
 
                 <line x1={-5.3} y1={0} x2={5.3} y2={0} stroke="black" strokeWidth={axisStroke} />
                 <line x1={0} y1={-5.3} x2={0} y2={5.3} stroke="black" strokeWidth={axisStroke} />
 
-                {ticks.map((x) => (
-                    <line key={`xt${x}`} x1={x} y1={-tickSize} x2={x} y2={tickSize} stroke="black" strokeWidth={0.04} />
+                {TICKS.map((x) => (
+                    <line
+                        key={`xt${x}`}
+                        x1={x}
+                        y1={-tickSize}
+                        x2={x}
+                        y2={tickSize}
+                        stroke="black"
+                        strokeWidth={0.04}
+                    />
                 ))}
-                {ticks.map((y) => (
-                    <line key={`yt${y}`} x1={-tickSize} y1={y} x2={tickSize} y2={y} stroke="black" strokeWidth={0.04} />
+                {TICKS.map((y) => (
+                    <line
+                        key={`yt${y}`}
+                        x1={-tickSize}
+                        y1={y}
+                        x2={tickSize}
+                        y2={y}
+                        stroke="black"
+                        strokeWidth={0.04}
+                    />
                 ))}
 
                 {Array.isArray(points) &&
@@ -185,12 +212,9 @@ function PlotWithRadiusAndClick({ r }) {
     const dispatch = useDispatch();
     const points = useSelector((state) => state.points.items);
 
-    const [picked, setPicked] = useState(null);
     const [err, setErr] = useState(null);
 
     const handlePickPoint = async (pt) => {
-        setPicked(pt);
-
         if (!Number.isFinite(r) || r <= 0) {
             setErr("Выбери ровно один R > 0 (MultiSelect сверху).");
             return;
@@ -202,19 +226,22 @@ function PlotWithRadiusAndClick({ r }) {
         try {
             const result = await checkPoint(payload);
             dispatch(addPoint(result));
-            console.log("server(click):", result);
         } catch (e) {
             console.error("server error:", e);
         }
     };
 
     return (
-        <div style={{ marginTop: 12 }}>
-            <div style={{ border: "1px solid #ddd", padding: 12, borderRadius: 8, width: "fit-content" }}>
+        <div>
+            <div className="plotCard">
                 <Plot R={r} points={points} onPickPoint={handlePickPoint} />
             </div>
 
-            {err && <div style={{ color: "red", marginTop: 8 }}>{err}</div>}
+            {err && (
+                <div className="errorText" style={{ marginTop: 10 }}>
+                    {err}
+                </div>
+            )}
         </div>
     );
 }
@@ -224,28 +251,30 @@ function PointsTable({ points }) {
     if (arr.length === 0) return <div style={{ marginTop: 12 }}>Точек пока нет.</div>;
 
     return (
-        <table style={{ borderCollapse: "collapse", marginTop: 12, minWidth: 420 }}>
-            <thead>
-                <tr>
-                    <th style={th}>#</th>
-                    <th style={th}>x</th>
-                    <th style={th}>y</th>
-                    <th style={th}>r</th>
-                    <th style={th}>hit</th>
-                </tr>
-            </thead>
-            <tbody>
-                {arr.map((p, i) => (
-                    <tr key={p.id ?? `${p.x}-${p.y}-${p.r}-${i}`}>
-                        <td style={td}>{i + 1}</td>
-                        <td style={td}>{Number(p.x).toFixed(3)}</td>
-                        <td style={td}>{Number(p.y).toFixed(3)}</td>
-                        <td style={td}>{Number(p.r).toFixed(3)}</td>
-                        <td style={td}>{p.hit ? "✅" : "❌"}</td>
+        <div className="tableWrap">
+            <table className="pointsTable">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>x</th>
+                        <th>y</th>
+                        <th>r</th>
+                        <th>hit</th>
                     </tr>
-                ))}
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    {arr.map((p, i) => (
+                        <tr key={p.id ?? `${p.x}-${p.y}-${p.r}-${i}`}>
+                            <td>{i + 1}</td>
+                            <td>{Number(p.x).toFixed(3)}</td>
+                            <td>{Number(p.y).toFixed(3)}</td>
+                            <td>{Number(p.r).toFixed(3)}</td>
+                            <td>{p.hit ? "✅" : "❌"}</td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
     );
 }
 
@@ -276,23 +305,18 @@ function ManualPointForm({ rSel, r }) {
 
         setError(null);
 
-        const payload = {
-            x: xSel[0],
-            y: Number(y),
-            r: Number(r),
-        };
+        const payload = { x: xSel[0], y: Number(y), r: Number(r) };
 
         try {
             const result = await checkPoint(payload);
             dispatch(addPoint(result));
-            console.log("sent(form):", payload, "got:", result);
         } catch (e) {
             console.error("send error:", e);
         }
     };
 
     return (
-        <div style={{ marginTop: 16, display: "grid", gap: 12, maxWidth: 420 }}>
+        <div className="panelStack">
             <div>
                 <label>X (MultiSelect):</label>
                 <MultiSelect
@@ -313,7 +337,7 @@ function ManualPointForm({ rSel, r }) {
                 <Slider value={y} onChange={(e) => setY(e.value)} min={-3} max={5} />
             </div>
 
-            {error && <div style={{ color: "red" }}>{error}</div>}
+            {error && <div className="errorText">{error}</div>}
 
             <button onClick={send}>Отправить</button>
         </div>

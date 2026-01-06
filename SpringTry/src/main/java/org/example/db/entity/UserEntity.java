@@ -5,24 +5,32 @@ import jakarta.persistence.*;
 @Entity
 @Table(name = "users")
 public class UserEntity {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
-    private String login;
+    // optional 1:1, владелец связи на стороне дочерних таблиц (Login/Google)
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private LoginEntity login;
 
-    @Column(name = "password_hash", nullable = false)
-    private String passwordHash;
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private GoogleAccountEntity google;
 
-    protected UserEntity() {}
-
-    public UserEntity(String login, String passwordHash) {
-        this.login = login;
-        this.passwordHash = passwordHash;
-    }
+    public UserEntity() {}
 
     public Long getId() { return id; }
-    public String getLogin() { return login; }
-    public String getPasswordHash() { return passwordHash; }
+
+    public LoginEntity getLogin() { return login; }
+    public GoogleAccountEntity getGoogle() { return google; }
+
+    public void attachLogin(LoginEntity login) {
+        this.login = login;
+        if (login != null) login.setUser(this);
+    }
+
+    public void attachGoogle(GoogleAccountEntity google) {
+        this.google = google;
+        if (google != null) google.setUser(this);
+    }
 }

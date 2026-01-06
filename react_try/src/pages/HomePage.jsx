@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { getTime } from "../api/timeApi";
 import { login, logout, register } from "../api/authThunks";
+import "./pages.css";
 
 function HomePage() {
     const [time, setTime] = useState(null);
@@ -17,7 +18,7 @@ function HomePage() {
             try {
                 const t = await getTime();
                 setTime(t);
-            } catch (e) {
+            } catch {
                 setTime(null);
             }
         }
@@ -40,54 +41,81 @@ function HomePage() {
         dispatch(register(l, p));
     }
 
+    function handleGoogleLogin() {
+        window.location.href = "/oauth2/authorization/google";
+    }
+
     const disabled = auth.status === "loading";
 
     return (
-        <div style={{ padding: 16 }}>
-            <h2>{time ?? "Загружаю..."}</h2>
+        <div className="page">
+            <div className="container">
+                <h2 className="homeHeader">{time ?? "Загружаю..."}</h2>
 
-            {auth.user ? (
-                <div style={{ marginTop: 16 }}>
-                    <div>Вы вошли как: <b>{auth.user.login}</b></div>
+                <div className="homeBody">
+                    {auth.user ? (
+                        <div className="authCard">
+                            <div>
+                                Вы вошли как: <b>{auth.user.login}</b>
+                            </div>
 
-                    <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
-                        <Link to="/main">Перейти в Main</Link>
-                        <button onClick={() => dispatch(logout())} disabled={disabled}>
-                            Выйти
-                        </button>
-                    </div>
+                            <div className="row rowWrap" style={{ marginTop: 10 }}>
+                                <Link to="/main">Перейти в Main</Link>
+                                <button onClick={() => dispatch(logout())} disabled={disabled}>
+                                    Выйти
+                                </button>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="authCard">
+                            <h3 className="authTitle">Вход</h3>
+
+                            <div className="stack">
+                                <input
+                                    placeholder="Логин"
+                                    value={loginValue}
+                                    onChange={(e) => setLoginValue(e.target.value)}
+                                    disabled={disabled}
+                                />
+                                <input
+                                    placeholder="Пароль"
+                                    type="password"
+                                    value={passwordValue}
+                                    onChange={(e) => setPasswordValue(e.target.value)}
+                                    disabled={disabled}
+                                />
+
+                                <button onClick={handleLogin} disabled={disabled}>
+                                    Войти
+                                </button>
+
+                                <button onClick={handleRegister} disabled={disabled}>
+                                    Зарегистрироваться
+                                </button>
+
+                                <div>
+                                    <div className="dividerRow">
+                                        <div className="dividerLine" />
+                                        <span className="dividerText">или</span>
+                                        <div className="dividerLine" />
+                                    </div>
+
+                                    <button
+                                        className="fullWidth"
+                                        onClick={handleGoogleLogin}
+                                        disabled={disabled}
+                                        style={{ marginTop: 10 }}
+                                    >
+                                        Continue with Google
+                                    </button>
+                                </div>
+
+                                {auth.error ? <div className="errorText">{auth.error}</div> : null}
+                            </div>
+                        </div>
+                    )}
                 </div>
-            ) : (
-                <div style={{ marginTop: 16, maxWidth: 320 }}>
-                    <h3>Вход</h3>
-
-                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                        <input
-                            placeholder="Логин"
-                            value={loginValue}
-                            onChange={(e) => setLoginValue(e.target.value)}
-                            disabled={disabled}
-                        />
-                        <input
-                            placeholder="Пароль"
-                            type="password"
-                            value={passwordValue}
-                            onChange={(e) => setPasswordValue(e.target.value)}
-                            disabled={disabled}
-                        />
-
-                        <button onClick={handleLogin} disabled={disabled}>
-                            Войти
-                        </button>
-
-                        <button onClick={handleRegister} disabled={disabled}>
-                            Зарегистрироваться
-                        </button>
-
-                        {auth.error ? <div style={{ color: "crimson" }}>{auth.error}</div> : null}
-                    </div>
-                </div>
-            )}
+            </div>
         </div>
     );
 }

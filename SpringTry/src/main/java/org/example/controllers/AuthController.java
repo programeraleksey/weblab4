@@ -5,6 +5,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import org.example.dto.*;
 import org.example.service.AuthService;
+import org.example.utils.AppPrincipal;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -25,15 +26,17 @@ public class AuthController {
     private final AuthService authService;
     private final AuthenticationManager authManager;
 
-    private final SecurityContextRepository securityContextRepository =
-            new HttpSessionSecurityContextRepository();
+    private final SecurityContextRepository securityContextRepository;
+
 
     public AuthController(
             AuthService authService,
-            AuthenticationManager authenticationManager
+            AuthenticationManager authenticationManager,
+            SecurityContextRepository securityContextRepository
     ) {
         this.authService = authService;
         this.authManager = authenticationManager;
+        this.securityContextRepository = securityContextRepository;
     }
 
     @PostMapping("/register")
@@ -46,6 +49,13 @@ public class AuthController {
         if (auth == null || !auth.isAuthenticated()) {
             return Map.of("authenticated", false);
         }
+        Object principal = auth.getPrincipal();
+        if (principal instanceof AppPrincipal p) {
+            return Map.of(
+                    "authenticated", true,
+                    "login", p.name()
+            );
+        }
         return Map.of(
                 "authenticated", true,
                 "login", auth.getName()
@@ -53,25 +63,24 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public void login(
-            @RequestBody LoginRequest req,
-            HttpServletRequest request,
-            HttpServletResponse response
-    ) {
+    public void login(@RequestBody LoginRequest req,
+                      HttpServletRequest request,
+                      HttpServletResponse response) {
+
         String login = req.login() == null ? "" : req.login().trim();
         String password = req.password() == null ? "" : req.password();
         if (login.isEmpty() || password.isEmpty()) throw new IllegalArgumentException("login and password are required");
+
         Authentication authentication = authManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        login,
-                        password
-                )
+                new UsernamePasswordAuthenticationToken(login, password)
         );
+
         SecurityContext context = SecurityContextHolder.createEmptyContext();
         context.setAuthentication(authentication);
         SecurityContextHolder.setContext(context);
         securityContextRepository.saveContext(context, request, response);
     }
+
 
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(HttpServletRequest request) {
